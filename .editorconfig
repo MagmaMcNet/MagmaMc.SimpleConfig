@@ -1,0 +1,22 @@
+﻿[*.cs]
+
+# CD1607: The file needs documentation headers.
+dotnet_diagnostic.CD1607.severity = none
+
+# CD1606: The property must have a documentation header.
+dotnet_diagnostic.CD1606.severity = silent
+
+# CD1600: The class must have a documentation header.
+dotnet_diagnostic.CD1600.severity = none
+
+# S1643: Strings should not be concatenated using '+' in a loop
+dotnet_diagnostic.S1643.severity = none
+
+# IDE0022: Use block body for methods
+dotnet_diagnostic.IDE0022.severity = none
+
+# CD1605: The method must have a documentation header.
+dotnet_diagnostic.CD1605.severity = none
+
+# S3267: Loops should be simplified with "LINQ" expressions
+dotnet_diagnostic.S3267.severity = none

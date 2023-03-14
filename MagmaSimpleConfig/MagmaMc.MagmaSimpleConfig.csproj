@@ -1,0 +1,67 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard1.3;net35;net5.0</TargetFrameworks>
+    <PackageId>MagmaMc.MagmaSimpleConfig</PackageId>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Title>MagmaMc.MagmaSimpleConfig</Title>
+    <SignAssembly>False</SignAssembly>
+    <PackageTags>simple config msc magmasimpleconfig magmamc TOML INI configuration small</PackageTags>
+    <Version>0.4.0</Version>
+    <AssemblyVersion>0.4.0.0</AssemblyVersion>
+    <IncludeSymbols>true</IncludeSymbols>
+    <Description>MagmaSimpleConfig is Fully Compatable With INI Files And TOML
+Supports: .NetCore, .Net Framework and .Net Standard </Description>
+    <Company>MagmaMc</Company>
+    <Copyright>ISC</Copyright>
+    <PackageIcon>ApplicationHelper.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <PackageReleaseNotes>
+      * Removed Repeated Code,
+      * Added Function For Comments Handling
+      * Better ValueConverter
+      * 
+      * Fixed Minor Bugs
+    </PackageReleaseNotes>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <DebugType>embedded</DebugType>
+    <WarningLevel>6</WarningLevel>
+    <OutputType>Exe</OutputType>
+    <StartupObject>MagmaMc.MagmaSimpleConfig.Test</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="GlobalSuppressions.cs" />
+    <EmbeddedResource Include="GlobalSuppressions.cs" />
+    <None Remove="LICENSE.txt" />
+    <None Remove="README.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="LICENSE.txt">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
+    
+    <Resource Include="README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\.editorconfig" Link=".editorconfig" />
+    <None Include="C:\Users\kaicy\OneDrive - Shaw Education Trust\Pictures\Images\ApplicationHelper.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+
+</Project>
