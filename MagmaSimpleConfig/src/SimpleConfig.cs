@@ -29,6 +29,12 @@ namespace MagmaMc.MagmaSimpleConfig
 
 
 
+        /// <summary>
+        /// If the file exists, read it. If it doesn't, create it and then read it
+        /// </summary>
+        /// <returns>
+        /// The file is being read and returned as a string array.
+        /// </returns>
         public string[] ReadWithCatch()
         {
             try
@@ -43,28 +49,46 @@ namespace MagmaMc.MagmaSimpleConfig
 
             }
         }
+
+        /// <summary>
+        /// It adds a comment to a specific key in a specific section
+        /// </summary>
+        /// <param name="Comment">The comment to add</param>
+        /// <param name="Key">The key of the object you want to add a comment to.</param>
+        /// <param name="Section">The section of the ini file you want to add the comment to.</param>
         public void AddComment(string Comment, string Key, string Section = "")
         {
-            string[] Lines = ReadWithCatch();
+            List <string> Lines = ReadWithCatch().ToList();
             string CurrentSection = "";
             int index = 0;
             CurrentSection = "";
             foreach (string Line in Lines)
             {
-                CurrentSection = (GetSection(Line) == "" ? CurrentSection : GetSection(Line));
-
                 index++;
+                CurrentSection = (GetSection(Line) == "" ? CurrentSection : GetSection(Line));
+                if (CurrentSection == Section)
+                {
+                    Object @object = GetObject(Line, CurrentSection);
+                    if (Line != "" && Line != "\n" && Line != " " && !Line.StartsWith("//") && GetSection(Line) == "")
+                        if (Line.Split(' ')[0].Trim().ToLower() == Key.ToLower())
+                        {
+                            if (Lines[index-2] != "//" + Comment)
+                                Lines.Insert(index-1, "//" + Comment);
+                            break;
+                        }
+
+                }
             }
+            File.WriteAllLines(FileName, Lines.ToArray());
         }
 
         /// <summary>
-        /// 
+        /// It sets the value of a key in a section
         /// </summary>
-        /// <param name="Key"></param>
-        /// <param name="Value"></param>
-        /// <param name="Section"></param>
-        /// <param name="UseFallback"></param>
-        /// <param name="UseSpaces"></param>
+        /// <param name="Key">The key of the value you want to set</param>
+        /// <param name="Value">The value you want to set the key to.</param>
+        /// <param name="Section">The section of the file you want to set the value in.</param>
+        /// <param name="UseFallback">If true, the value will be set to the key with a " = " instead of a " => ".</param>
         /// <exception cref="ArgumentException"></exception>
         public void SetValue(string Key, object Value, string Section = "", bool UseFallback = false)
         {
@@ -73,8 +97,7 @@ namespace MagmaMc.MagmaSimpleConfig
             if (UseFallback && !GetFallBackEnabled())
                 throw new ArgumentException("Fallback Is Not Enabled");
             int Index = 0;
-            string[] Lines = ReadWithCatch();
-            bool set = false;
+            List<string> Lines = ReadWithCatch().ToList();
             string CurrentSection = "";
             List<string> Sections = new List<string>();
             foreach (string Line in Lines)
@@ -84,45 +107,67 @@ namespace MagmaMc.MagmaSimpleConfig
 
                 if (!Sections.Contains(CurrentSection))
                     Sections.Add(CurrentSection);
-
-                if (@object.Key == Key && CurrentSection == Section)
+                if (Line != "" && Line != "\n" && Line != " " && !Line.StartsWith("//") && GetSection(Line) == "")
                 {
-                    Lines[Index] = Key + (UseFallback ? (" = ") : (" => ")) + Value;
-                    set = true;
-                    break;
+                    if (CurrentSection == Section)
+                    {
+                        if (Line.Split(' ')[0].Trim() == Key )
+                        {
+                            Lines[Index] = Key + (UseFallback ? (" = ") : (" => ")) + Value;
+                            File.WriteAllLines(FileName, Lines.ToArray());
+                            return;
+                        }
+                    }
                 }
-
 
                 Index++;
             }
-            if (!set)
+            if (!Sections.Contains(Section))
             {
-                if (!Sections.Contains(Section))
-                    File.AppendAllText(FileName, "\n<" + Section + ">\n" + Key + (UseFallback ? (" = ") : (" => ")) + Value);
-                else
+                try
                 {
-                    Index = 0;
-                    CurrentSection = "";
-                    foreach (string Line in Lines)
+                    if (Lines.Last() == "")
+                        Index -= 1;
+                }
+                catch { }
+                try
+                {
+                    if (Lines[Lines.Count - 1] == "" || Lines[Lines.Count - 1] == " ")
                     {
-                        CurrentSection = (GetSection(Line) == "" ? CurrentSection : GetSection(Line));
-
-                        if (CurrentSection == Section)
-                        {
-                            while (GetSection(Lines[Index]) != "")
-                                Index++;
-                            Lines[Index] = Lines[Index] + "\n" + Key + (UseFallback ? (" = ") : (" => ")) + Value;
-                            break;
-                        }
-
-
-                        Index++;
+                        Lines[Lines.Count - 1] = "[" + Section + "]\n" + Key + (UseFallback ? (" = ") : (" => ")) + Value;
+                        //Lines[Index] = "\n<" + Section + ">\n" + Key + (UseFallback ? (" = ") : (" => ")) + Value;
                     }
-                    File.WriteAllLines(this.FileName, Lines);
+                }
+                catch
+                {
+                        Lines.Add("[" + Section + "]\n" + Key + (UseFallback ? (" = ") : (" => ")) + Value);
+
                 }
             }
             else
-                File.WriteAllLines(this.FileName, Lines);
+            {
+                Index = 0;
+                CurrentSection = "";
+                foreach (string Line in Lines)
+                {
+                    CurrentSection = (GetSection(Line) == "" ? CurrentSection : GetSection(Line));
+
+                    if (CurrentSection == Section)
+                    {
+                        while (GetSection(Lines[Index]) != "")
+                            Index++;
+                        if (Lines[Index - 1] == "")
+                            Index -= 1;
+                        Lines[Index] = Lines[Index] + "\n" + Key + (UseFallback ? (" = ") : (" => ")) + Value;
+                        break;
+                    }
+
+
+                    Index++;
+                }
+            }
+            
+            File.WriteAllLines(this.FileName, Lines.ToArray());
         }
 
         /// <summary>
@@ -140,7 +185,6 @@ namespace MagmaMc.MagmaSimpleConfig
             foreach (string Line in Lines)
             {
                 index++;
-                // Section Finder
                 CurrentSection = (GetSection(Line) == "" ? CurrentSection : GetSection(Line));
 
 
@@ -167,6 +211,17 @@ namespace MagmaMc.MagmaSimpleConfig
                 
             }
             return DefualtValue;
+        }
+
+        /// <summary>
+        /// adds A section to the end of the config
+        /// </summary>
+        /// <param name="Section">The section you want to create.</param>
+        public void CreateSection(string Section)
+        {
+            List<string> Lines = ReadWithCatch().ToList();
+            Lines.Add("["+ Section+"]");
+            File.WriteAllLines(FileName, Lines.ToArray());
         }
 
 

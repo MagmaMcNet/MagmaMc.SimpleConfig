@@ -8,21 +8,24 @@
     <Title>MagmaMc.MagmaSimpleConfig</Title>
     <SignAssembly>False</SignAssembly>
     <PackageTags>simple config msc magmasimpleconfig magmamc TOML INI configuration small</PackageTags>
-    <Version>0.4.0</Version>
-    <AssemblyVersion>0.4.0.0</AssemblyVersion>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <IncludeSymbols>true</IncludeSymbols>
-    <Description>MagmaSimpleConfig is Fully Compatable With INI Files And TOML
-Supports: .NetCore, .Net Framework and .Net Standard </Description>
+    <Description>
+      MagmaSimpleConfig is Fully Compatable With INI And TOML Files
+      Supports: .NetCore, .Net Framework and .Net Standard 
+    </Description>
     <Company>MagmaMc</Company>
     <Copyright>ISC</Copyright>
-    <PackageIcon>ApplicationHelper.png</PackageIcon>
+    <PackageIcon>Icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
-    <PackageReleaseNotes>
+    <PackageReleaseNotes> Version 1.0.0;
       * Removed Repeated Code,
-      * Added Function For Comments Handling
-      * Better ValueConverter
-      * 
+      * Added Function For Comments Handling,
+      * Better ValueConverter,
+      * Reworked Value Handler,
+      * Added Better Documentation,
       * Fixed Minor Bugs
     </PackageReleaseNotes>
   </PropertyGroup>
@@ -31,7 +34,7 @@ Supports: .NetCore, .Net Framework and .Net Standard </Description>
     <DebugType>embedded</DebugType>
     <WarningLevel>6</WarningLevel>
     <OutputType>Exe</OutputType>
-    <StartupObject>MagmaMc.MagmaSimpleConfig.Test</StartupObject>
+    <StartupObject>MagmaMc.MagmaSimpleConfig.Tester.Test</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
@@ -54,14 +57,15 @@ Supports: .NetCore, .Net Framework and .Net Standard </Description>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>
   </ItemGroup>
-
+  
   <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />
-    <None Include="C:\Users\kaicy\OneDrive - Shaw Education Trust\Pictures\Images\ApplicationHelper.png">
+    <None Include="Icon.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
   </ItemGroup>
+  
 
 
 </Project>

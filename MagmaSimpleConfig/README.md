@@ -16,13 +16,14 @@ namespace AProgram
 	public void Main(string[] ConsoleArgs)
 	{
 		// Load Config File and fail if file does not exist
-		MagmaSimpleConfig MSC = new MagmaSimpleConfig("config.msc", false); 
+		SimpleConfig MSC = new SimpleConfig("config.msc", false); 
 
 		Console.Write("Enter Value For Key Test1:"); // I Enter: "ImportantValue1"
 		string Value1 = Console.ReadLine();
 		MSC.SetValue("Test1", Value1, "SectionName");
 		
-		Console.WriteLine("\n Value="+MSC.GetValue("Test1", "DefualtValue", "SectionName"); // Output:  "ImportantValue1"
+		Console.WriteLine("\n Value=" + MSC.GetValue("Test1", "DefualtValue", "SectionName")); 
+		// Output:  "ImportantValue1"
 	}
 }
 ```

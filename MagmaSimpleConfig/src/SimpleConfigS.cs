@@ -11,7 +11,7 @@ namespace MagmaMc.MagmaSimpleConfig
     [Obsolete("Not Finished Please Use At Your Own Risk")]
     public class SimpleConfigS: Global
     {
-        public string ConfigData { get; private set; }
+        public List<string> ConfigData { get; private set; }
 
 
 #pragma warning disable CS0618 // Disable Obsolete Warning These Are The Built In Function
@@ -21,87 +21,95 @@ namespace MagmaMc.MagmaSimpleConfig
         /// </summary>
         public SimpleConfigS(string data)
         {
-            ConfigData = data;
+            ConfigData = data.Split('\n').ToList();
         }
 
 
 
+
         /// <summary>
-        /// 
+        /// It sets the value of a key in a section
         /// </summary>
-        /// <param name="Key"></param>
-        /// <param name="Value"></param>
-        /// <param name="Section"></param>
-        /// <param name="UseFallback"></param>
-        /// <param name="UseSpaces"></param>
+        /// <param name="Key">The key of the value you want to set</param>
+        /// <param name="Value">The value you want to set the key to.</param>
+        /// <param name="Section">The section of the file you want to set the value in.</param>
+        /// <param name="UseFallback">If true, the value will be set to the key with a " = " instead of a " => ".</param>
         /// <exception cref="ArgumentException"></exception>
-        public void SetValue(string Key, object Value, string Section = "", bool UseFallback = false, bool UseSpaces = true)
+        public void SetValue(string Key, object Value, string Section = "", bool UseFallback = false)
         {
             if (Key == "")
                 throw new ArgumentException("Key Can Not Equal \"\"");
             if (UseFallback && !GetFallBackEnabled())
                 throw new ArgumentException("Fallback Is Not Enabled");
             int Index = 0;
-            string[] Lines = ConfigData.Replace("\r\n", "\n").Split('\n');
-            bool set = false;
             string CurrentSection = "";
             List<string> Sections = new List<string>();
-            foreach (string Line in Lines)
+            foreach (string Line in ConfigData)
             {
                 CurrentSection = (GetSection(Line) == "" ? CurrentSection : GetSection(Line));
+                Object @object = GetObject(Line, CurrentSection);
+
                 if (!Sections.Contains(CurrentSection))
                     Sections.Add(CurrentSection);
-
-                if (Line.StartsWith(Key) && CurrentSection == Section)
+                if (Line != "" && Line != "\n" && Line != " " && !Line.StartsWith("//") && GetSection(Line) == "")
                 {
-                    if (UseFallback)
-                        Lines[Index] = Key + (UseSpaces ? (" = ") : ("=")) + Value;
-                    else
-                        Lines[Index] = Key + (UseSpaces ? (" => ") : ("=>")) + Value;
-                    set = true;
-                    break;
+                    if (CurrentSection == Section)
+                    {
+                        if (Line.Split(' ')[0].Trim() == Key)
+                        {
+                            ConfigData[Index] = Key + (UseFallback ? (" = ") : (" => ")) + Value;
+                            return;
+                        }
+                    }
                 }
-
 
                 Index++;
             }
-            if (!set)
+            if (!Sections.Contains(Section))
             {
-                if (!Sections.Contains(Section))
+                try
                 {
-                    if (UseFallback)
-                        ConfigData += "\n[" + Section + "]\n" + Key + (UseSpaces ? (" = ") : ("=")) + Value;
-                    else
-                        ConfigData += "\n[" + Section + "]\n" + Key + (UseSpaces ? (" => ") : ("=>")) + Value;
-
+                    if (ConfigData.Last() == "")
+                        Index -= 1;
                 }
-                else
+                catch { }
+                try
                 {
-                    Index = 0;
-                    CurrentSection = "";
-                    foreach (string Line in Lines)
+                    if (ConfigData[ConfigData.Count - 1] == "" || ConfigData[ConfigData.Count - 1] == " ")
                     {
-                        CurrentSection = (GetSection(Line) == "" ? CurrentSection : GetSection(Line));
-
-                        if (CurrentSection == Section)
-                        {
-                            while ((Lines[Index].Contains("[") || Lines[Index].Contains("<")) && Lines[Index] != "")
-                                Index++;
-                            if (UseFallback)
-                                Lines[Index] = Lines[Index] + "\n" + Key + (UseSpaces ? (" = ") : ("=")) + Value;
-                            else
-                                Lines[Index] = Lines[Index] + "\n" + Key + (UseSpaces ? (" => ") : ("=>")) + Value;
-                            break;
-                        }
-
-
-                        Index++;
+                        ConfigData[ConfigData.Count - 1] = "[" + Section + "]\n" + Key + (UseFallback ? (" = ") : (" => ")) + Value;
+                        //Lines[Index] = "\n<" + Section + ">\n" + Key + (UseFallback ? (" = ") : (" => ")) + Value;
                     }
-                    ConfigData = ConvertToData(Lines);
+                }
+                catch
+                {
+                    ConfigData.Add("[" + Section + "]\n" + Key + (UseFallback ? (" = ") : (" => ")) + Value);
+
                 }
             }
             else
-                ConfigData = ConvertToData(Lines);
+            {
+                Index = 0;
+                CurrentSection = "";
+                foreach (string Line in ConfigData)
+                {
+                    CurrentSection = (GetSection(Line) == "" ? CurrentSection : GetSection(Line));
+
+                    if (CurrentSection == Section)
+                    {
+                        while (GetSection(ConfigData[Index]) != "")
+                            Index++;
+                        if (ConfigData[Index - 1] == "")
+                            Index -= 1;
+                        ConfigData[Index] = ConfigData[Index] + "\n" + Key + (UseFallback ? (" = ") : (" => ")) + Value;
+                        break;
+                    }
+
+
+                    Index++;
+                }
+            }
+
         }
 
         /// <summary>
@@ -113,10 +121,9 @@ namespace MagmaMc.MagmaSimpleConfig
         /// <returns></returns>
         public object GetValue(string Key, object DefualtValue = null, string Section = "")
         {
-            string[] Lines = ConfigData.Replace("\r\n", "\n").Split('\n');
             string CurrentSection = "";
             int index = 0;
-            foreach (string Line in Lines)
+            foreach (string Line in ConfigData)
             {
                 index++;
                 // Section Finder
