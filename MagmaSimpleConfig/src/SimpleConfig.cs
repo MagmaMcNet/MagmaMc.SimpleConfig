@@ -3,28 +3,27 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using MagmaMc.MagmaSimpleConfig.Utils;
+using System.Text;
+using System.Diagnostics;
 
 namespace MagmaMc.MagmaSimpleConfig
 {
-
-    public class SimpleConfig : Global
+    public class SimpleConfig: Global
     {
         public string FileName { get; }
         public bool AutoGenerate { get; } = true;
+        public string AESPassword = null;
 
 
-#pragma warning disable CS0618 // Disable Obsolete Warning These Are The Built In Function
-
-
-        public SimpleConfig(string @FileName)
+        public SimpleConfig(string FileName)
         {
-            this.FileName = @FileName;
+            this.FileName = FileName;
         }
 
-        public SimpleConfig(string @FileName, bool @AutoGenerateFile = true)
+        public SimpleConfig(string FileName, string AESPassword)
         {
-            this.FileName = @FileName;
-            this.AutoGenerate = @AutoGenerateFile;
+            this.FileName = FileName;
+            this.AESPassword = AESPassword;
         }
 
 
@@ -37,206 +36,150 @@ namespace MagmaMc.MagmaSimpleConfig
         /// </returns>
         public string[] ReadWithCatch()
         {
-            try
-            {
-                return File.ReadAllLines(FileName);
-            }
-            catch
-            {
-                if (!File.Exists(FileName))
-                    File.WriteAllText(FileName, "");
-                return File.ReadAllLines(FileName);
-
-            }
+            if (!File.Exists(FileName))
+                File.WriteAllText(FileName, "");
+            return Encoding.ASCII.GetString(AES.DecryptData( File.ReadAllBytes(FileName), AESPassword)).Split(new string[] { Environment.NewLine },    StringSplitOptions.None);
         }
 
-        /// <summary>
-        /// It adds a comment to a specific key in a specific section
-        /// </summary>
-        /// <param name="Comment">The comment to add</param>
-        /// <param name="Key">The key of the object you want to add a comment to.</param>
-        /// <param name="Section">The section of the ini file you want to add the comment to.</param>
-        public void AddComment(string Comment, string Key, string Section = "")
+        public string GetValue(string Key, string Section = null, string Default = null)
         {
-            List <string> Lines = ReadWithCatch().ToList();
-            string CurrentSection = "";
-            int index = 0;
-            CurrentSection = "";
-            foreach (string Line in Lines)
-            {
-                index++;
-                CurrentSection = (GetSection(Line) == "" ? CurrentSection : GetSection(Line));
-                if (CurrentSection == Section)
+            string CurrentSection = null;
+            if (Section == null)
+                foreach (string Line in ReadWithCatch())
                 {
-                    Object @object = GetObject(Line, CurrentSection);
-                    if (Line != "" && Line != "\n" && Line != " " && !Line.StartsWith("//") && GetSection(Line) == "")
-                        if (Line.Split(' ')[0].Trim().ToLower() == Key.ToLower())
-                        {
-                            if (Lines[index-2] != "//" + Comment)
-                                Lines.Insert(index-1, "//" + Comment);
-                            break;
-                        }
+                    if (GetSection(Line, null) != null)
+                        return null;
 
+                    Object @object = GetObject(Line);
+
+                    if (@object.Key == Key)
+                        return @object.Value;
                 }
-            }
-            File.WriteAllLines(FileName, Lines.ToArray());
+            else
+                foreach (string Line in ReadWithCatch())
+                {
+                    CurrentSection = GetSection(Line, CurrentSection);
+                    if (CurrentSection != Section)
+                        continue;
+
+                    Object @object = GetObject(Line);
+
+                    if (@object.Key == Key)
+                        return @object.Value;
+                }
+
+            return Default;
         }
 
-        /// <summary>
-        /// It sets the value of a key in a section
-        /// </summary>
-        /// <param name="Key">The key of the value you want to set</param>
-        /// <param name="Value">The value you want to set the key to.</param>
-        /// <param name="Section">The section of the file you want to set the value in.</param>
-        /// <param name="UseFallback">If true, the value will be set to the key with a " = " instead of a " => ".</param>
-        /// <exception cref="ArgumentException"></exception>
-        public void SetValue(string Key, object Value, string Section = "", bool UseFallback = false)
+        public void SetValue(string Key, string Value, string Section = null)
         {
-            if (Key == "")
-                throw new ArgumentException("Key Can Not Equal \"\"");
-            if (UseFallback && !GetFallBackEnabled())
-                throw new ArgumentException("Fallback Is Not Enabled");
-            int Index = 0;
             List<string> Lines = ReadWithCatch().ToList();
-            string CurrentSection = "";
-            List<string> Sections = new List<string>();
-            foreach (string Line in Lines)
+            string CurrentSection = null;
+            if (!Lines.Any(line => line.StartsWith(Key)))
             {
-                CurrentSection = (GetSection(Line) == "" ? CurrentSection : GetSection(Line));
-                Object @object = GetObject(Line, CurrentSection);
-
-                if (!Sections.Contains(CurrentSection))
-                    Sections.Add(CurrentSection);
-                if (Line != "" && Line != "\n" && Line != " " && !Line.StartsWith("//") && GetSection(Line) == "")
+                // if User Supplied No Section
+                if (Section == null)
                 {
-                    if (CurrentSection == Section)
-                    {
-                        if (Line.Split(' ')[0].Trim() == Key )
+                    Lines[0] = Key + " => " + Value + "\r\n" + Lines[0];
+                    File.WriteAllBytes(FileName, AES.EncryptData(Encoding.ASCII.GetBytes(string.Join(Environment.NewLine, Lines.ToArray())), AESPassword));
+                    return;
+                }
+                // if key exists
+                int Index = 0;
+                foreach(string Line in Lines)
+                {
+                    CurrentSection = GetSection(Line, CurrentSection);
+                    if (CurrentSection != Section)
+                        continue;
+                    Object value = GetObject(Line);
+                    if (value != null)
+                        if (value.Key == Key)
                         {
-                            Lines[Index] = Key + (UseFallback ? (" = ") : (" => ")) + Value;
-                            File.WriteAllLines(FileName, Lines.ToArray());
+                            Lines[Index] = value.ToString();
+                            File.WriteAllBytes(FileName, AES.EncryptData(Encoding.ASCII.GetBytes(string.Join(Environment.NewLine, Lines.ToArray())), AESPassword));
                             return;
                         }
-                    }
-                }
-
-                Index++;
-            }
-            if (!Sections.Contains(Section))
-            {
-                try
-                {
-                    if (Lines.Last() == "")
-                        Index -= 1;
-                }
-                catch { }
-                try
-                {
-                    if (Lines[Lines.Count - 1] == "" || Lines[Lines.Count - 1] == " ")
-                    {
-                        Lines[Lines.Count - 1] = "[" + Section + "]\n" + Key + (UseFallback ? (" = ") : (" => ")) + Value;
-                        //Lines[Index] = "\n<" + Section + ">\n" + Key + (UseFallback ? (" = ") : (" => ")) + Value;
-                    }
-                }
-                catch
-                {
-                        Lines.Add("[" + Section + "]\n" + Key + (UseFallback ? (" = ") : (" => ")) + Value);
-
-                }
-            }
-            else
-            {
-                Index = 0;
-                CurrentSection = "";
-                foreach (string Line in Lines)
-                {
-                    CurrentSection = (GetSection(Line) == "" ? CurrentSection : GetSection(Line));
-
-                    if (CurrentSection == Section)
-                    {
-                        while (GetSection(Lines[Index]) != "")
-                            Index++;
-                        if (Lines[Index - 1] == "")
-                            Index -= 1;
-                        Lines[Index] = Lines[Index] + "\n" + Key + (UseFallback ? (" = ") : (" => ")) + Value;
-                        break;
-                    }
-
-
                     Index++;
                 }
-            }
-            
-            File.WriteAllLines(this.FileName, Lines.ToArray());
-        }
 
-        /// <summary>
-        /// Get Value Of Key From "Magma's Simple Config Format"
-        /// </summary>
-        /// <param name="Key">The String Name Of The Variable Name To Locate Eg</param>
-        /// <param name="DefualtValue">Defualt Value Of Key If Not Found Or Not Set</param>
-        /// <param name="Section"></param>
-        /// <returns></returns>
-        public object GetValue(string Key, object DefualtValue = null, string Section = "")
-        {
-            string[] Lines = ReadWithCatch();
-            string CurrentSection = "";
-            int index = 0;
-            foreach (string Line in Lines)
-            {
-                index++;
-                CurrentSection = (GetSection(Line) == "" ? CurrentSection : GetSection(Line));
-
-
-                // Key > Value | Checker
-                if (CurrentSection == Section && Line.StartsWith(Key))
+                Index = -1;
+                bool InSection = false;
+                CurrentSection = null;
+                foreach (string Line in ReadWithCatch())
                 {
-                    if (Line.StartsWith(Key + "=>"))
-                        return ValueConverter(Line.Replace(Key + "=>", ""));
-                    else if (Line.StartsWith(Key + " => "))
-                        return ValueConverter(Line.Replace(Key + " => ", ""));
-
-
-                    // Key = Value | Checker  -- Fallback If Someone Tries To Enter It Wrongly
-                    if (Line.Contains("=") && !Line.Contains("=>") && GetFallBackEnabled())
+                    Index++;
+                    if (CurrentSection != Section)
                     {
-
-                        Logger($"Fallback Usage of '=' On Line {index}, Please Use '=>' Or Disable Logger");
-                        if (Line.StartsWith(Key + "="))
-                            return ValueConverter(Line.Replace(Key + "=", ""));
-                        else if (Line.StartsWith(Key + " = "))
-                            return ValueConverter(Line.Replace(Key + " = ", ""));
+                        CurrentSection = GetSection(Line, CurrentSection);
+                        if (CurrentSection == Section)
+                            InSection = true;
+                        if (InSection)
+                        {
+                            Lines[Index+1] = Key + " => " + Value + "\r\n" + Lines[Index+1];
+                            File.WriteAllBytes(FileName, AES.EncryptData(Encoding.ASCII.GetBytes(string.Join(Environment.NewLine, Lines.ToArray())), AESPassword));
+                            return;
+                        }
+                        continue;
                     }
+                    CurrentSection = GetSection(Line, CurrentSection);
+                    InSection = true;
+                    Object value = GetObject(Line);
+                    if (value != null)
+                        if (value.Key == Key)
+                        {
+                            Lines[Index] = value.ToString();
+                            File.WriteAllBytes(FileName, AES.EncryptData(Encoding.ASCII.GetBytes(string.Join(Environment.NewLine, Lines.ToArray())), AESPassword));
+                            return;
+                        }
                 }
-                
+                if (!InSection)
+                {
+                    if (string.IsNullOrEmpty(Lines[Lines.Count - 1]))
+                        Lines[Lines.Count - 1] = $"[{Section}]\r\n{Key} => {Value}";
+                    else
+                        Lines.Add($"[{Section}]\r\n{Key} => {Value}");
+                }
+                File.WriteAllBytes(FileName, AES.EncryptData(Encoding.ASCII.GetBytes(string.Join(Environment.NewLine, Lines.ToArray())), AESPassword));
+            } else
+            {
+
+                int Index = -1;
+                foreach (string Line in Lines)
+                {
+                    Index++;
+                    CurrentSection = GetSection(Line, CurrentSection);
+                    if (CurrentSection != Section)
+                        continue;
+                    Object value = GetObject(Line);
+                    if (value != null)
+                        if (value.Key == Key)
+                        {
+                            value.Value = Value;
+                            Lines[Index] = value.ToString();
+                            File.WriteAllBytes(FileName, AES.EncryptData(Encoding.ASCII.GetBytes(string.Join(Environment.NewLine, Lines.ToArray())), AESPassword));
+                            return;
+                        }
+                }
+
+                Index = -1;
+                CurrentSection = null;
+                foreach (string Line in ReadWithCatch())
+                {
+                    Index++;
+                    CurrentSection = GetSection(Line, CurrentSection);
+                    Object value = GetObject(Line);
+                    if (value != null)
+                        if (value.Key == Key)
+                        {
+                            Lines[Index] = value.ToString();
+                            File.WriteAllBytes(FileName, AES.EncryptData(Encoding.ASCII.GetBytes(string.Join(Environment.NewLine, Lines.ToArray())), AESPassword));
+                            return;
+                        }
+                }
+                File.WriteAllBytes(FileName, AES.EncryptData(Encoding.ASCII.GetBytes(string.Join(Environment.NewLine, Lines.ToArray())), AESPassword));
             }
-            return DefualtValue;
+
         }
 
-        /// <summary>
-        /// adds A section to the end of the config
-        /// </summary>
-        /// <param name="Section">The section you want to create.</param>
-        public void CreateSection(string Section)
-        {
-            List<string> Lines = ReadWithCatch().ToList();
-            Lines.Add("["+ Section+"]");
-            File.WriteAllLines(FileName, Lines.ToArray());
-        }
-
-
-
-
-
-#pragma warning restore CS0618 // :35
-
     }
-    [Obsolete("Please Use SimpleConfig Or SimpleConfigS For Strings", true)]
-    public class MagmaSimpleConfig
-    {
-        
-        [Obsolete("Please Use SimpleConfig Or SimpleConfigS For Strings", true)]
-        public MagmaSimpleConfig(string REMOVE) { }
-    }
-
 }

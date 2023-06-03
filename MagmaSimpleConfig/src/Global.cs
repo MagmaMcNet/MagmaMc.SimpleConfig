@@ -5,9 +5,155 @@ using System.Collections;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.IO;
+using System.Security;
+using System.Diagnostics;
 
 namespace MagmaMc.MagmaSimpleConfig.Utils
 {
+    public static class AES
+    {
+        public const string Header = "\n<AES-Encrypted>";
+        public static readonly byte[] saltBytes = new byte[] { 77, 97, 103, 109, 97, 77, 99, 0 }; // Unicode -> Decimal (MagmaMc\0)
+        public const ushort Strength = 1024;
+
+        private static byte[] AES_Encrypt(byte[] bytesToBeEncrypted, byte[] passwordBytes)
+        {
+            byte[] encryptedBytes;
+            using (MemoryStream ms = new MemoryStream())
+            {
+                using (RijndaelManaged AES = new RijndaelManaged())
+                {
+                    AES.KeySize = 256;
+                    AES.BlockSize = 128;
+
+                    var key = new Rfc2898DeriveBytes(passwordBytes, saltBytes, Strength);
+                    AES.Key = key.GetBytes(AES.KeySize / 8);
+                    AES.IV = key.GetBytes(AES.BlockSize / 8);
+
+                    AES.Mode = CipherMode.CBC;
+                    AES.Padding = PaddingMode.PKCS7;
+
+                    using (var encryptor = AES.CreateEncryptor())
+                    {
+                        using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
+                        {
+                            cs.Write(bytesToBeEncrypted, 0, bytesToBeEncrypted.Length);
+                        }
+                    }
+                    encryptedBytes = ms.ToArray();
+                }
+            }
+
+            //Console.WriteLine($@"AES Encryption Completed With {Strength} Iterations On {encryptedBytes.Length / 1024}KB Of Data.");
+            return encryptedBytes;
+        }
+
+        private static byte[] AES_Decrypt(byte[] bytesToBeDecrypted, byte[] passwordBytes)
+        {
+            byte[] decryptedBytes = null;
+
+            using (MemoryStream ms = new MemoryStream())
+            {
+                using (RijndaelManaged AES = new RijndaelManaged())
+                {
+                    AES.KeySize = 256;
+                    AES.BlockSize = 128;
+
+                    var key = new Rfc2898DeriveBytes(passwordBytes, saltBytes, Strength);
+                    AES.Key = key.GetBytes(AES.KeySize / 8);
+                    AES.IV = key.GetBytes(AES.BlockSize / 8);
+
+                    AES.Mode = CipherMode.CBC;
+                    AES.Padding = PaddingMode.PKCS7;
+
+                    using (var decryptor = AES.CreateDecryptor())
+                    {
+                        using (var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Write))
+                        {
+                            cs.Write(bytesToBeDecrypted, 0, bytesToBeDecrypted.Length);
+                        }
+                    }
+                    decryptedBytes = ms.ToArray();
+                }
+            }
+
+            //Console.WriteLine($@"AES Decryption Completed With {Strength} Iterations On {decryptedBytes.Length / 1024}KB Of Data.");
+            return decryptedBytes;
+        }
+
+
+
+        public static void EncryptFile(string file, string Password)
+        {
+            if (Password == null)
+                return;
+            byte[] FileContent = File.ReadAllBytes(file);
+            if (!FileContent.ToString().EndsWith(Header))
+            {
+                byte[] passwordBytes = Encoding.ASCII.GetBytes(Password);
+                passwordBytes = SHA256.Create().ComputeHash(passwordBytes);
+
+                List<byte> bytesEncrypted = AES_Encrypt(FileContent, passwordBytes).ToList();
+
+
+                bytesEncrypted.AddRange(Encoding.UTF8.GetBytes(Header));
+                File.WriteAllBytes(file, bytesEncrypted.ToArray());
+                bytesEncrypted.Clear();
+            }
+        }
+
+        public static byte[] EncryptData(byte[] Data, string Password)
+        {
+            if (Password == null || Encoding.UTF8.GetString(Data).EndsWith(Header))
+                return Data;
+            byte[] FileContent = Data;
+            byte[] passwordBytes = Encoding.ASCII.GetBytes(Password);
+            passwordBytes = SHA256.Create().ComputeHash(passwordBytes);
+
+            List<byte> bytesEncrypted = AES_Encrypt(FileContent, passwordBytes).ToList();
+
+
+            Console.WriteLine(Encoding.UTF8.GetString(bytesEncrypted.ToArray()));
+            bytesEncrypted.AddRange(Encoding.UTF8.GetBytes(Header));
+
+            return bytesEncrypted.ToArray();
+            
+        }
+
+        public static void DecryptFile(string fileEncrypted, string Password)
+        {
+            if (Password == null)
+                return;
+            if (File.ReadAllText(fileEncrypted).EndsWith(Header))
+            {
+                byte[] FileOGContent = File.ReadAllBytes(fileEncrypted);
+                byte[] passwordBytes = Encoding.UTF8.GetBytes(Password);
+                passwordBytes = SHA256.Create().ComputeHash(passwordBytes);
+                byte[] FileContent = new byte[FileOGContent.Length - Header.Length];
+                Array.Copy(FileOGContent, FileContent, FileOGContent.Length - Header.Length);
+
+                byte[] bytesDecrypted = AES_Decrypt(FileContent, passwordBytes);
+                File.WriteAllBytes(fileEncrypted, bytesDecrypted);
+            }
+        }
+
+
+        public static byte[] DecryptData(byte[] RawData, string Password)
+        {
+            if (Password == null || !Encoding.ASCII.GetString(RawData).EndsWith(Header))
+                return RawData;
+
+            byte[] FileOGContent = RawData;
+            byte[] passwordBytes = Encoding.UTF8.GetBytes(Password);
+            passwordBytes = SHA256.Create().ComputeHash(passwordBytes);
+            byte[] FileContent = new byte[FileOGContent.Length - Header.Length];
+            Array.Copy(FileOGContent, FileContent, FileOGContent.Length - Header.Length);
+            Console.WriteLine(Encoding.ASCII.GetString(AES_Decrypt(FileContent, passwordBytes)));
+            return AES_Decrypt(FileContent, passwordBytes);
+        }
+
+    }
     public class Global: PackageData
     {
 
@@ -15,7 +161,7 @@ namespace MagmaMc.MagmaSimpleConfig.Utils
         private bool FallBackEnabled { get; set; } = false;
 
 
-
+        
         /// <summary>
         /// A List Of All Base10 Numbers
         /// </summary>
@@ -133,7 +279,7 @@ namespace MagmaMc.MagmaSimpleConfig.Utils
         /// </summary>
         /// <param name="Line"></param>
         /// <returns></returns>
-        protected static string GetSection(string Line)
+        protected static string GetSection(string Line, string Defualt = null)
         {
             if (Line.StartsWith("[\"") && Line.EndsWith("\"]"))
                 return Line.Replace("[\"", "").Replace("\"]", "");
@@ -144,98 +290,40 @@ namespace MagmaMc.MagmaSimpleConfig.Utils
             else if (Line.StartsWith("[") && Line.EndsWith("]"))
                 return Line.Replace("[", "").Replace("]", "");
 
-
-            else if (Line.StartsWith("<") && Line.EndsWith(">"))
-                return Line.Replace("<", "").Replace(">", "");
-
-            else if (Line.StartsWith("<\"") && Line.EndsWith("\">"))
-                return Line.Replace("<\"", "").Replace("\">", "");
-
-            else if (Line.StartsWith("<'") && Line.EndsWith("'>"))
-                return Line.Replace("<'", "").Replace("'>", "");
             else
-                return "";
+                return Defualt;
         }
-        protected string GetComment(string Line)
-        {
-            if (Line.StartsWith("//"))
-                return Line.Replace("//", "");
-            else
-                return Line;
-        }
-        protected void InsertLineComment(List<string> List, ushort Index, string Comment) =>
-            List.Insert(Index, "//" + Comment);
-
-        protected void AddLineComment(List<string> List, string Comment) =>
-            List.Add("//" + Comment);
         public class Object
         {
 
             public string Section { get; set; } = "";
             public string Key { get; set; } = "NULL";
-            public object Value { get; set; } = "";
-            /*public static bool operator == (Object obj1, Object obj2)
-            {
-#if NETCOREAPP3_1_OR_GREATER
-                Thread.Sleep(1000);
-#endif
-                if (obj1 == null)
-                    return false;
-                if (obj2 == null)
-                    return false;
+            public string Value { get; set; } = "";
 
-                if (obj1.Section != obj2.Section)
-                    return false;
-                if (obj1.Key != obj2.Key)
-                    return false;
-                if (obj1.Value != obj2.Value)
-                    return false;
-
-                return true;
-            }
-            public static bool operator != (Object obj1, Object obj2) =>
-                !(obj1 == obj2);
-
-            public override bool Equals(object obj2)
-            {
-                return this == obj2;
-            }
+            public override string ToString() => Key + " => " + Value;
             
             public override int GetHashCode()
             {
                 return (int)((Value.Length ^ 2 + (Section.GetHashCode() - 512)+Key.GetHashCode()) - Key.Length) * 23;
             }
-            */
 
         }
 
-        public Object GetObject(string Line, string Section)
+
+        public Object GetObject(string Line)
         {
-            string Eq = GetFallBackEnabled() ? "=" : "=>";
-            if (GetSection(Line) != "")
+            string Eq = "=>";
+            string[] strings = Line.Split(new string[] { Eq }, StringSplitOptions.TrimEntries);
+            if (Line.Contains(Eq))
             {
-                string[] strings = Line.Split(new string[] { Eq }, StringSplitOptions.None);
-                if (strings.Contains(Eq))
-                {
-                    Object item = new Object();
-                    item.Section = Section;
-                    item.Key = strings[0].Trim();
-                    if (strings[1].StartsWith("[") && strings[1].EndsWith("]"))
-                    {
-                        // array value
-                        item.Value = strings[1].Trim('[', ']').Split(',').Select(s => ValueConverter(s.Trim())).ToArray();
-                    }
-                    else
-                    {
-                        // normal value
-                        item.Value = ValueConverter(strings[1].Trim());
-                    }
-                    return item;
-                }
+                Object item = new Object();
+                item.Key = strings[0].Trim();
+                item.Value = strings[1].Trim();
+                return item;
             }
+            
             return null;
         }
-
 
 
         internal static string ComputeMD5Hash(string input)

@@ -1,32 +1,38 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.3;net35;net5.0</TargetFrameworks>
+    <TargetFrameworks>net6.0</TargetFrameworks>
     <PackageId>MagmaMc.MagmaSimpleConfig</PackageId>
     <ImplicitUsings>disable</ImplicitUsings>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>MagmaMc.MagmaSimpleConfig</Title>
     <SignAssembly>False</SignAssembly>
     <PackageTags>simple config msc magmasimpleconfig magmamc TOML INI configuration small</PackageTags>
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <Version>2.0.0</Version>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
     <IncludeSymbols>true</IncludeSymbols>
     <Description>
-      MagmaSimpleConfig is Fully Compatable With INI And TOML Files
-      Supports: .NetCore, .Net Framework and .Net Standard 
+      MagmaSimpleConfig Is Small Nuget Package Allowing Developers To Create Configs Simply And Being Easy To Read And Edit,
+      Supports: .Net, .Net Framework
     </Description>
     <Company>MagmaMc</Company>
     <Copyright>ISC</Copyright>
     <PackageIcon>Icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
-    <PackageReleaseNotes> Version 1.0.0;
-      * Removed Repeated Code,
-      * Added Function For Comments Handling,
-      * Better ValueConverter,
-      * Reworked Value Handler,
-      * Added Better Documentation,
-      * Fixed Minor Bugs
+    <PackageReleaseNotes>
+      Version 2.0.0;
+      * Added Option For AES Encryption
+      * Full Code Rework
+      * Faster
+      
+      * Removed Obsolete Code
+      * Removed Auto Value Converter To GetValue
+      * Removed Support For Ini And TOML Files For Code Maintainability
+      
+      * Fixed Default Value In GetValue Being Broken
+      * Fixed Crashing On Adding More Than One Section
+      * Fixed 
     </PackageReleaseNotes>
   </PropertyGroup>
 
@@ -39,6 +45,7 @@
 
   <ItemGroup>
     <Compile Remove="GlobalSuppressions.cs" />
+    <Compile Remove="src\SimpleConfigS.cs" />
     <EmbeddedResource Include="GlobalSuppressions.cs" />
     <None Remove="LICENSE.txt" />
     <None Remove="README.md" />
@@ -64,6 +71,7 @@
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
+    <None Include="src\SimpleConfigS.cs" />
   </ItemGroup>
   
 
